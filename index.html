@@ -1,505 +1,551 @@
 <!DOCTYPE html>
 <html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
     <title>🐉 Dragon's Gold Heist - Babylon.js</title>
-    <link rel="stylesheet" href="./src/css/styles.css">
+    <link
+      rel="stylesheet"
+      href="./src/css/styles.css"
+    />
     <script src="https://cdn.babylonjs.com/babylon.js"></script>
     <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
-</head>
-<body>
+  </head>
+  <body>
     <canvas id="renderCanvas"></canvas>
-    
+
     <div id="ui-overlay">
-        <h1>🐉 Dragon's Gold Heist</h1>
-        <p>💰 Monedas en Cueva: <span id="coins-delivered">0</span> / <span id="total-coins">5</span></p>
-        <p>
-            <span class="status-indicator" id="status-light"></span>
-            Estado: <span id="status-text">Sin moneda</span>
-        </p>
+      <h1>🐉 Dragon's Gold Heist</h1>
+      <p>
+        💰 Monedas en Cueva: <span id="coins-delivered">0</span> /
+        <span id="total-coins">5</span>
+      </p>
+      <p>
+        <span
+          class="status-indicator"
+          id="status-light"
+        ></span>
+        Estado: <span id="status-text">Sin moneda</span>
+      </p>
     </div>
 
     <div id="instructions">
-        <h3>📖 Controles</h3>
-        <p>🎮 WASD - Mover dragón</p>
-        <p>⌨️ ESPACIO - Recoger/Dejar moneda</p>
-        <p>🎯 Objetivo: Lleva todas las monedas a la cueva</p>
+      <h3>📖 Controles</h3>
+      <p>🎮 WASD - Mover dragón</p>
+      <p>⌨️ ESPACIO - Recoger/Dejar moneda</p>
+      <p>🎯 Objetivo: Lleva todas las monedas a la cueva</p>
     </div>
 
     <div id="victory-screen">
-        <h2>🎉 ¡Victoria! 🎉</h2>
-        <p>¡Has completado tu tesoro!</p>
-        <p>Todas las monedas están en tu cueva</p>
+      <h2>🎉 ¡Victoria! 🎉</h2>
+      <p>¡Has completado tu tesoro!</p>
+      <p>Todas las monedas están en tu cueva</p>
     </div>
 
     <script>
-        // ============================================
-        // CONFIGURACIÓN INICIAL
-        // ============================================
-        const canvas = document.getElementById("renderCanvas");
-        const engine = new BABYLON.Engine(canvas, true);
+      // ============================================
+      // CONFIGURACIÓN INICIAL
+      // ============================================
+      const canvas = document.getElementById('renderCanvas');
+      const engine = new BABYLON.Engine(canvas, true);
 
-        // Variables de estado del juego
-        let monedaEnMano = false;
-        let monedasEntregadas = 0;
-        const TOTAL_MONEDAS = 5;
-        let inputMap = {};
-        let monedaActual = null;
+      // Variables de estado del juego
+      let monedaEnMano = false;
+      let monedasEntregadas = 0;
+      const TOTAL_MONEDAS = 5;
+      let inputMap = {};
+      let monedaActual = null;
 
-        // ============================================
-        // FUNCIÓN PARA CREAR TEXTURAS PROCEDURALES
-        // ============================================
-        function crearTexturaProceduralEscamas(scene) {
-            const textura = new BABYLON.DynamicTexture("dragon-texture", 512, scene);
-            const ctx = textura.getContext();
-            
-            // Fondo verde oscuro (piel de dragón)
-            ctx.fillStyle = "#2d5016";
-            ctx.fillRect(0, 0, 512, 512);
-            
-            // Dibujar escamas
-            for (let y = 0; y < 512; y += 30) {
-                for (let x = 0; x < 512; x += 30) {
-                    const offset = (y / 30) % 2 === 0 ? 15 : 0;
-                    ctx.fillStyle = "#3a6b1f";
-                    ctx.beginPath();
-                    ctx.arc(x + offset, y, 12, 0, Math.PI * 2);
-                    ctx.fill();
-                    
-                    ctx.fillStyle = "#4d8a28";
-                    ctx.beginPath();
-                    ctx.arc(x + offset, y, 8, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-            }
-            
-            textura.update();
-            return textura;
-        }
+      // ============================================
+      // FUNCIÓN PARA CREAR TEXTURAS PROCEDURALES
+      // ============================================
+      function crearTexturaProceduralEscamas(scene) {
+        const textura = new BABYLON.DynamicTexture(
+          'dragon-texture',
+          512,
+          scene
+        );
+        const ctx = textura.getContext();
 
-        function crearTexturaMoneda(scene) {
-            const textura = new BABYLON.DynamicTexture("coin-texture", 256, scene);
-            const ctx = textura.getContext();
-            
-            // Gradiente dorado
-            const gradient = ctx.createRadialGradient(128, 128, 20, 128, 128, 128);
-            gradient.addColorStop(0, "#FFD700");
-            gradient.addColorStop(0.5, "#FFA500");
-            gradient.addColorStop(1, "#FF8C00");
-            
-            ctx.fillStyle = gradient;
-            ctx.fillRect(0, 0, 256, 256);
-            
-            // Detalles de la moneda
-            ctx.strokeStyle = "#B8860B";
-            ctx.lineWidth = 4;
+        // Fondo verde oscuro (piel de dragón)
+        ctx.fillStyle = '#2d5016';
+        ctx.fillRect(0, 0, 512, 512);
+
+        // Dibujar escamas
+        for (let y = 0; y < 512; y += 30) {
+          for (let x = 0; x < 512; x += 30) {
+            const offset = (y / 30) % 2 === 0 ? 15 : 0;
+            ctx.fillStyle = '#3a6b1f';
             ctx.beginPath();
-            ctx.arc(128, 128, 100, 0, Math.PI * 2);
-            ctx.stroke();
-            
+            ctx.arc(x + offset, y, 12, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.fillStyle = '#4d8a28';
             ctx.beginPath();
-            ctx.arc(128, 128, 80, 0, Math.PI * 2);
-            ctx.stroke();
-            
-            textura.update();
-            return textura;
+            ctx.arc(x + offset, y, 8, 0, Math.PI * 2);
+            ctx.fill();
+          }
         }
 
-        function crearTexturaPiedra(scene) {
-            const textura = new BABYLON.DynamicTexture("stone-texture", 512, scene);
-            const ctx = textura.getContext();
-            
-            ctx.fillStyle = "#696969";
-            ctx.fillRect(0, 0, 512, 512);
-            
-            // Agregar ruido para efecto de piedra
-            for (let i = 0; i < 2000; i++) {
-                const x = Math.random() * 512;
-                const y = Math.random() * 512;
-                const size = Math.random() * 3;
-                const gray = Math.floor(Math.random() * 100 + 100);
-                ctx.fillStyle = `rgb(${gray}, ${gray}, ${gray})`;
-                ctx.fillRect(x, y, size, size);
-            }
-            
-            textura.update();
-            return textura;
+        textura.update();
+        return textura;
+      }
+
+      function crearTexturaMoneda(scene) {
+        const textura = new BABYLON.DynamicTexture('coin-texture', 256, scene);
+        const ctx = textura.getContext();
+
+        // Gradiente dorado
+        const gradient = ctx.createRadialGradient(128, 128, 20, 128, 128, 128);
+        gradient.addColorStop(0, '#FFD700');
+        gradient.addColorStop(0.5, '#FFA500');
+        gradient.addColorStop(1, '#FF8C00');
+
+        ctx.fillStyle = gradient;
+        ctx.fillRect(0, 0, 256, 256);
+
+        // Detalles de la moneda
+        ctx.strokeStyle = '#B8860B';
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.arc(128, 128, 100, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(128, 128, 80, 0, Math.PI * 2);
+        ctx.stroke();
+
+        textura.update();
+        return textura;
+      }
+
+      function crearTexturaPiedra(scene) {
+        const textura = new BABYLON.DynamicTexture('stone-texture', 512, scene);
+        const ctx = textura.getContext();
+
+        ctx.fillStyle = '#696969';
+        ctx.fillRect(0, 0, 512, 512);
+
+        // Agregar ruido para efecto de piedra
+        for (let i = 0; i < 2000; i++) {
+          const x = Math.random() * 512;
+          const y = Math.random() * 512;
+          const size = Math.random() * 3;
+          const gray = Math.floor(Math.random() * 100 + 100);
+          ctx.fillStyle = `rgb(${gray}, ${gray}, ${gray})`;
+          ctx.fillRect(x, y, size, size);
         }
 
-        function crearTexturaHierba(scene) {
-            const textura = new BABYLON.DynamicTexture("grass-texture", 512, scene);
-            const ctx = textura.getContext();
-            
-            ctx.fillStyle = "#567d46";
-            ctx.fillRect(0, 0, 512, 512);
-            
-            // Agregar variación de hierba
-            for (let i = 0; i < 3000; i++) {
-                const x = Math.random() * 512;
-                const y = Math.random() * 512;
-                const green = Math.floor(Math.random() * 50 + 80);
-                ctx.fillStyle = `rgb(${green - 30}, ${green}, ${green - 50})`;
-                ctx.fillRect(x, y, 1, Math.random() * 3 + 1);
-            }
-            
-            textura.update();
-            return textura;
+        textura.update();
+        return textura;
+      }
+
+      function crearTexturaHierba(scene) {
+        const textura = new BABYLON.DynamicTexture('grass-texture', 512, scene);
+        const ctx = textura.getContext();
+
+        ctx.fillStyle = '#567d46';
+        ctx.fillRect(0, 0, 512, 512);
+
+        // Agregar variación de hierba
+        for (let i = 0; i < 3000; i++) {
+          const x = Math.random() * 512;
+          const y = Math.random() * 512;
+          const green = Math.floor(Math.random() * 50 + 80);
+          ctx.fillStyle = `rgb(${green - 30}, ${green}, ${green - 50})`;
+          ctx.fillRect(x, y, 1, Math.random() * 3 + 1);
         }
+
+        textura.update();
+        return textura;
+      }
+
+      // ============================================
+      // CREACIÓN DE LA ESCENA
+      // ============================================
+      const createScene = function () {
+        const scene = new BABYLON.Scene(engine);
+        scene.collisionsEnabled = true;
+        scene.clearColor = new BABYLON.Color3(0.4, 0.6, 0.9); // Cielo azul
 
         // ============================================
-        // CREACIÓN DE LA ESCENA
+        // CÁMARA Y LUZ
         // ============================================
-        const createScene = function () {
-            const scene = new BABYLON.Scene(engine);
-            scene.collisionsEnabled = true;
-            scene.clearColor = new BABYLON.Color3(0.4, 0.6, 0.9); // Cielo azul
+        const camera = new BABYLON.ArcRotateCamera(
+          'camera',
+          -Math.PI / 2,
+          Math.PI / 3,
+          30,
+          BABYLON.Vector3.Zero(),
+          scene
+        );
+        camera.attachControl(canvas, true);
+        camera.lowerRadiusLimit = 15;
+        camera.upperRadiusLimit = 50;
 
-            // ============================================
-            // CÁMARA Y LUZ
-            // ============================================
-            const camera = new BABYLON.ArcRotateCamera(
-                "camera",
-                -Math.PI / 2,
-                Math.PI / 3,
-                30,
-                BABYLON.Vector3.Zero(),
-                scene
-            );
-            camera.attachControl(canvas, true);
-            camera.lowerRadiusLimit = 15;
-            camera.upperRadiusLimit = 50;
+        const light = new BABYLON.HemisphericLight(
+          'light',
+          new BABYLON.Vector3(0, 1, 0),
+          scene
+        );
+        light.intensity = 1.2;
 
-            const light = new BABYLON.HemisphericLight("light", new BABYLON.Vector3(0, 1, 0), scene);
-            light.intensity = 1.2;
+        const directionalLight = new BABYLON.DirectionalLight(
+          'dirLight',
+          new BABYLON.Vector3(-1, -2, -1),
+          scene
+        );
+        directionalLight.intensity = 0.5;
 
-            const directionalLight = new BABYLON.DirectionalLight("dirLight", new BABYLON.Vector3(-1, -2, -1), scene);
-            directionalLight.intensity = 0.5;
+        // ============================================
+        // MATERIALES
+        // ============================================
+        const matDragon = new BABYLON.StandardMaterial('matDragon', scene);
+        matDragon.diffuseTexture = crearTexturaProceduralEscamas(scene);
+        matDragon.specularColor = new BABYLON.Color3(0.2, 0.3, 0.1);
 
-            // ============================================
-            // MATERIALES
-            // ============================================
-            const matDragon = new BABYLON.StandardMaterial("matDragon", scene);
-            matDragon.diffuseTexture = crearTexturaProceduralEscamas(scene);
-            matDragon.specularColor = new BABYLON.Color3(0.2, 0.3, 0.1);
+        const matMoneda = new BABYLON.StandardMaterial('matMoneda', scene);
+        matMoneda.diffuseTexture = crearTexturaMoneda(scene);
+        matMoneda.specularColor = new BABYLON.Color3(1, 0.8, 0);
+        matMoneda.emissiveColor = new BABYLON.Color3(0.2, 0.15, 0);
 
-            const matMoneda = new BABYLON.StandardMaterial("matMoneda", scene);
-            matMoneda.diffuseTexture = crearTexturaMoneda(scene);
-            matMoneda.specularColor = new BABYLON.Color3(1, 0.8, 0);
-            matMoneda.emissiveColor = new BABYLON.Color3(0.2, 0.15, 0);
+        const matCueva = new BABYLON.StandardMaterial('matCueva', scene);
+        matCueva.diffuseTexture = crearTexturaPiedra(scene);
+        matCueva.diffuseColor = new BABYLON.Color3(0.3, 0.2, 0.1);
 
-            const matCueva = new BABYLON.StandardMaterial("matCueva", scene);
-            matCueva.diffuseTexture = crearTexturaPiedra(scene);
-            matCueva.diffuseColor = new BABYLON.Color3(0.3, 0.2, 0.1);
+        const matPueblo = new BABYLON.StandardMaterial('matPueblo', scene);
+        matPueblo.diffuseTexture = crearTexturaHierba(scene);
 
-            const matPueblo = new BABYLON.StandardMaterial("matPueblo", scene);
-            matPueblo.diffuseTexture = crearTexturaHierba(scene);
+        const matSuelo = new BABYLON.StandardMaterial('matSuelo', scene);
+        matSuelo.diffuseColor = new BABYLON.Color3(0.6, 0.5, 0.4);
 
-            const matSuelo = new BABYLON.StandardMaterial("matSuelo", scene);
-            matSuelo.diffuseColor = new BABYLON.Color3(0.6, 0.5, 0.4);
+        // ============================================
+        // CREAR SUELO PRINCIPAL
+        // ============================================
+        const suelo = BABYLON.MeshBuilder.CreateGround(
+          'suelo',
+          { width: 50, height: 50 },
+          scene
+        );
+        suelo.material = matSuelo;
 
-            // ============================================
-            // CREAR SUELO PRINCIPAL
-            // ============================================
-            const suelo = BABYLON.MeshBuilder.CreateGround("suelo", { width: 50, height: 50 }, scene);
-            suelo.material = matSuelo;
+        // ============================================
+        // CREAR DRAGÓN (JUGADOR) - MODELO GLTF
+        // ============================================
+        let dragon = null;
+        let dragonMesh = null;
 
-            // ============================================
-            // CREAR DRAGÓN (JUGADOR)
-            // ============================================
-            const dragon = new BABYLON.TransformNode("dragon");
-            
-            // Cuerpo del dragón
-            const cuerpo = BABYLON.MeshBuilder.CreateBox("cuerpo", { width: 2, height: 1, depth: 3 }, scene);
-            cuerpo.material = matDragon;
-            cuerpo.parent = dragon;
-            cuerpo.position.y = 0.5;
+        // Cargar el modelo GLTF del dragón
+        BABYLON.SceneLoader.ImportMesh(
+          '',
+          './src/assets/models/',
+          'Dragon.gltf',
+          scene,
+          function (meshes) {
+            // El modelo cargado
+            dragonMesh = meshes[0];
 
-            // Cabeza
-            const cabeza = BABYLON.MeshBuilder.CreateBox("cabeza", { width: 1.2, height: 1, depth: 1.5 }, scene);
-            cabeza.material = matDragon;
-            cabeza.parent = dragon;
-            cabeza.position = new BABYLON.Vector3(0, 0.8, 1.8);
+            // Crear un contenedor padre para controlar el dragón
+            dragon = new BABYLON.TransformNode('dragonController');
+            dragonMesh.parent = dragon;
 
-            // Hocico
-            const hocico = BABYLON.MeshBuilder.CreateBox("hocico", { width: 0.8, height: 0.6, depth: 1 }, scene);
-            hocico.material = matDragon;
-            hocico.parent = dragon;
-            hocico.position = new BABYLON.Vector3(0, 0.6, 2.5);
+            // Ajustar escala del modelo (puede variar según el modelo)
+            dragonMesh.scaling = new BABYLON.Vector3(0.5, 0.5, 0.5);
 
-            // Ojos
-            const matOjo = new BABYLON.StandardMaterial("matOjo", scene);
-            matOjo.diffuseColor = new BABYLON.Color3(1, 0, 0);
-            matOjo.emissiveColor = new BABYLON.Color3(0.5, 0, 0);
+            // Ajustar posición del modelo respecto al contenedor
+            dragonMesh.position = new BABYLON.Vector3(0, 0, 0);
 
-            const ojoIzq = BABYLON.MeshBuilder.CreateSphere("ojoIzq", { diameter: 0.3 }, scene);
-            ojoIzq.material = matOjo;
-            ojoIzq.parent = dragon;
-            ojoIzq.position = new BABYLON.Vector3(-0.4, 1, 2.3);
+            // Sin rotación inicial - el modelo ya debe estar orientado correctamente
+            dragonMesh.rotation.y = 0;
 
-            const ojoDer = BABYLON.MeshBuilder.CreateSphere("ojoDer", { diameter: 0.3 }, scene);
-            ojoDer.material = matOjo;
-            ojoDer.parent = dragon;
-            ojoDer.position = new BABYLON.Vector3(0.4, 1, 2.3);
-
-            // Alas
-            const matAla = new BABYLON.StandardMaterial("matAla", scene);
-            matAla.diffuseColor = new BABYLON.Color3(0.2, 0.3, 0.1);
-            matAla.alpha = 0.8;
-
-            const alaIzq = BABYLON.MeshBuilder.CreateBox("alaIzq", { width: 2, height: 0.1, depth: 2 }, scene);
-            alaIzq.material = matAla;
-            alaIzq.parent = dragon;
-            alaIzq.position = new BABYLON.Vector3(-1.5, 1, 0);
-            alaIzq.rotation.z = Math.PI / 6;
-
-            const alaDer = BABYLON.MeshBuilder.CreateBox("alaDer", { width: 2, height: 0.1, depth: 2 }, scene);
-            alaDer.material = matAla;
-            alaDer.parent = dragon;
-            alaDer.position = new BABYLON.Vector3(1.5, 1, 0);
-            alaDer.rotation.z = -Math.PI / 6;
-
-            // Cola
-            const cola = BABYLON.MeshBuilder.CreateCylinder("cola", { height: 3, diameterTop: 0.5, diameterBottom: 0.2 }, scene);
-            cola.material = matDragon;
-            cola.parent = dragon;
-            cola.position = new BABYLON.Vector3(0, 0.5, -2);
-            cola.rotation.x = Math.PI / 2;
-
+            // Posición inicial del dragón en la escena
             dragon.position = new BABYLON.Vector3(0, 0, 0);
 
-            // ============================================
-            // CREAR ZONA DE LA CUEVA (Zona de Entrega)
-            // ============================================
-            const cueva = BABYLON.MeshBuilder.CreateBox("cueva", { width: 8, height: 4, depth: 6 }, scene);
-            cueva.material = matCueva;
-            cueva.position = new BABYLON.Vector3(-18, 2, -18);
-
-            // Entrada de la cueva
-            const entrada = BABYLON.MeshBuilder.CreateBox("entrada", { width: 4, height: 3, depth: 0.5 }, scene);
-            entrada.material = matCueva;
-            entrada.position = new BABYLON.Vector3(-15, 1.5, -15);
-
-            // Zona de entrega (invisible)
-            const zonaEntrega = BABYLON.MeshBuilder.CreateGround("zonaEntrega", { width: 6, height: 6 }, scene);
-            const matZonaEntrega = new BABYLON.StandardMaterial("matZonaEntrega", scene);
-            matZonaEntrega.diffuseColor = new BABYLON.Color3(0.5, 0, 0);
-            matZonaEntrega.alpha = 0.3;
-            matZonaEntrega.emissiveColor = new BABYLON.Color3(0.3, 0, 0);
-            zonaEntrega.material = matZonaEntrega;
-            zonaEntrega.position = new BABYLON.Vector3(-18, 0.05, -15);
-
-            // ============================================
-            // CREAR ZONA DEL PUEBLO (Zona de Recogida)
-            // ============================================
-            const zonaPueblo = BABYLON.MeshBuilder.CreateGround("zonaPueblo", { width: 12, height: 12 }, scene);
-            zonaPueblo.material = matPueblo;
-            zonaPueblo.position = new BABYLON.Vector3(15, 0.02, 15);
-
-            // Casitas del pueblo
-            const matCasa = new BABYLON.StandardMaterial("matCasa", scene);
-            matCasa.diffuseColor = new BABYLON.Color3(0.8, 0.6, 0.4);
-
-            const matTecho = new BABYLON.StandardMaterial("matTecho", scene);
-            matTecho.diffuseColor = new BABYLON.Color3(0.6, 0.2, 0.1);
-
-            for (let i = 0; i < 3; i++) {
-                const casa = BABYLON.MeshBuilder.CreateBox(`casa${i}`, { width: 3, height: 3, depth: 3 }, scene);
-                casa.material = matCasa;
-                casa.position = new BABYLON.Vector3(12 + i * 4, 1.5, 12 + i * 2);
-
-                const techo = BABYLON.MeshBuilder.CreateCylinder(`techo${i}`, { 
-                    height: 2, 
-                    diameterTop: 0, 
-                    diameterBottom: 4 
-                }, scene);
-                techo.material = matTecho;
-                techo.position = new BABYLON.Vector3(12 + i * 4, 4, 12 + i * 2);
-            }
-
-            // ============================================
-            // CREAR MONEDAS DE ORO
-            // ============================================
-            const monedas = [];
-            const posicionesMonedas = [
-                new BABYLON.Vector3(13, 0.3, 13),
-                new BABYLON.Vector3(17, 0.3, 15),
-                new BABYLON.Vector3(15, 0.3, 17),
-                new BABYLON.Vector3(19, 0.3, 13),
-                new BABYLON.Vector3(14, 0.3, 19)
-            ];
-
-            for (let i = 0; i < TOTAL_MONEDAS; i++) {
-                const moneda = BABYLON.MeshBuilder.CreateCylinder(`moneda${i}`, {
-                    height: 0.2,
-                    diameter: 0.8
-                }, scene);
-                moneda.material = matMoneda;
-                moneda.position = posicionesMonedas[i].clone();
-                moneda.metadata = { recogida: false, enCueva: false };
-                monedas.push(moneda);
-
-                // Animación de rotación
-                scene.registerBeforeRender(function () {
-                    if (!moneda.metadata.recogida) {
-                        moneda.rotation.y += 0.02;
-                        moneda.position.y = posicionesMonedas[i].y + Math.sin(Date.now() * 0.003 + i) * 0.1;
-                    }
-                });
-            }
-
-            // ============================================
-            // MANEJO DE INPUT
-            // ============================================
-            scene.actionManager = new BABYLON.ActionManager(scene);
-
-            scene.actionManager.registerAction(
-                new BABYLON.ExecuteCodeAction(
-                    BABYLON.ActionManager.OnKeyDownTrigger,
-                    function (evt) {
-                        inputMap[evt.sourceEvent.key.toLowerCase()] = true;
-                    }
-                )
-            );
-
-            scene.actionManager.registerAction(
-                new BABYLON.ExecuteCodeAction(
-                    BABYLON.ActionManager.OnKeyUpTrigger,
-                    function (evt) {
-                        inputMap[evt.sourceEvent.key.toLowerCase()] = false;
-                    }
-                )
-            );
-
-            // ============================================
-            // LÓGICA DE RECOGER/DEJAR MONEDAS
-            // ============================================
-            scene.onKeyboardObservable.add((kbInfo) => {
-                if (kbInfo.type === BABYLON.KeyboardEventTypes.KEYDOWN) {
-                    if (kbInfo.event.key === " ") {
-                        // RECOGER MONEDA
-                        if (!monedaEnMano) {
-                            for (let moneda of monedas) {
-                                if (!moneda.metadata.recogida && !moneda.metadata.enCueva) {
-                                    let dist = BABYLON.Vector3.Distance(dragon.position, moneda.position);
-                                    if (dist < 3) {
-                                        console.log("💰 ¡Moneda recogida!");
-                                        moneda.parent = dragon;
-                                        moneda.position = new BABYLON.Vector3(0, 2, 0);
-                                        moneda.metadata.recogida = true;
-                                        monedaEnMano = true;
-                                        monedaActual = moneda;
-                                        actualizarUI();
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                        // DEJAR MONEDA EN LA CUEVA
-                        else {
-                            let dist = BABYLON.Vector3.Distance(dragon.position, zonaEntrega.position);
-                            if (dist < 5) {
-                                console.log("🏆 ¡Moneda entregada en la cueva!");
-                                monedaActual.parent = null;
-                                monedaActual.position = new BABYLON.Vector3(
-                                    zonaEntrega.position.x + (Math.random() - 0.5) * 4,
-                                    0.3,
-                                    zonaEntrega.position.z + (Math.random() - 0.5) * 4
-                                );
-                                monedaActual.metadata.enCueva = true;
-                                monedaEnMano = false;
-                                monedasEntregadas++;
-                                monedaActual = null;
-                                actualizarUI();
-                                
-                                // Verificar victoria
-                                if (monedasEntregadas === TOTAL_MONEDAS) {
-                                    document.getElementById('victory-screen').style.display = 'block';
-                                }
-                            }
-                        }
-                    }
-                }
-            });
-
-            // ============================================
-            // MOVIMIENTO DEL DRAGÓN
-            // ============================================
-            const velocidad = 0.15;
-            scene.onBeforeRenderObservable.add(() => {
-                let moved = false;
-                let targetRotation = dragon.rotation.y;
-
-                if (inputMap["w"]) {
-                    dragon.position.z += velocidad;
-                    targetRotation = 0;
-                    moved = true;
-                }
-                if (inputMap["s"]) {
-                    dragon.position.z -= velocidad;
-                    targetRotation = Math.PI;
-                    moved = true;
-                }
-                if (inputMap["a"]) {
-                    dragon.position.x -= velocidad;
-                    targetRotation = Math.PI / 2;
-                    moved = true;
-                }
-                if (inputMap["d"]) {
-                    dragon.position.x += velocidad;
-                    targetRotation = -Math.PI / 2;
-                    moved = true;
-                }
-
-                // Rotación suave del dragón
-                if (moved) {
-                    let diff = targetRotation - dragon.rotation.y;
-                    while (diff > Math.PI) diff -= 2 * Math.PI;
-                    while (diff < -Math.PI) diff += 2 * Math.PI;
-                    dragon.rotation.y += diff * 0.1;
-                }
-
-                // La cámara sigue al dragón
-                camera.target = dragon.position;
-            });
-
-            return scene;
-        };
+            console.log('🐉 Modelo de dragón cargado exitosamente');
+          }
+        );
 
         // ============================================
-        // ACTUALIZAR UI
+        // CREAR ZONA DE LA CUEVA (Zona de Entrega)
         // ============================================
-        function actualizarUI() {
-            document.getElementById('coins-delivered').textContent = monedasEntregadas;
-            document.getElementById('total-coins').textContent = TOTAL_MONEDAS;
-            
-            const statusLight = document.getElementById('status-light');
-            const statusText = document.getElementById('status-text');
-            
-            if (monedaEnMano) {
-                statusLight.className = 'status-indicator status-carrying';
-                statusText.textContent = 'Llevando moneda 🪙';
-            } else {
-                statusLight.className = 'status-indicator status-empty';
-                statusText.textContent = 'Sin moneda';
-            }
+        const cueva = BABYLON.MeshBuilder.CreateBox(
+          'cueva',
+          { width: 8, height: 4, depth: 6 },
+          scene
+        );
+        cueva.material = matCueva;
+        cueva.position = new BABYLON.Vector3(-18, 2, -18);
+
+        // Entrada de la cueva
+        const entrada = BABYLON.MeshBuilder.CreateBox(
+          'entrada',
+          { width: 4, height: 3, depth: 0.5 },
+          scene
+        );
+        entrada.material = matCueva;
+        entrada.position = new BABYLON.Vector3(-15, 1.5, -15);
+
+        // Zona de entrega (invisible)
+        const zonaEntrega = BABYLON.MeshBuilder.CreateGround(
+          'zonaEntrega',
+          { width: 6, height: 6 },
+          scene
+        );
+        const matZonaEntrega = new BABYLON.StandardMaterial(
+          'matZonaEntrega',
+          scene
+        );
+        matZonaEntrega.diffuseColor = new BABYLON.Color3(0.5, 0, 0);
+        matZonaEntrega.alpha = 0.3;
+        matZonaEntrega.emissiveColor = new BABYLON.Color3(0.3, 0, 0);
+        zonaEntrega.material = matZonaEntrega;
+        zonaEntrega.position = new BABYLON.Vector3(-18, 0.05, -15);
+
+        // ============================================
+        // CREAR ZONA DEL PUEBLO (Zona de Recogida)
+        // ============================================
+        const zonaPueblo = BABYLON.MeshBuilder.CreateGround(
+          'zonaPueblo',
+          { width: 12, height: 12 },
+          scene
+        );
+        zonaPueblo.material = matPueblo;
+        zonaPueblo.position = new BABYLON.Vector3(15, 0.02, 15);
+
+        // Casitas del pueblo
+        const matCasa = new BABYLON.StandardMaterial('matCasa', scene);
+        matCasa.diffuseColor = new BABYLON.Color3(0.8, 0.6, 0.4);
+
+        const matTecho = new BABYLON.StandardMaterial('matTecho', scene);
+        matTecho.diffuseColor = new BABYLON.Color3(0.6, 0.2, 0.1);
+
+        for (let i = 0; i < 3; i++) {
+          const casa = BABYLON.MeshBuilder.CreateBox(
+            `casa${i}`,
+            { width: 3, height: 3, depth: 3 },
+            scene
+          );
+          casa.material = matCasa;
+          casa.position = new BABYLON.Vector3(12 + i * 4, 1.5, 12 + i * 2);
+
+          const techo = BABYLON.MeshBuilder.CreateCylinder(
+            `techo${i}`,
+            {
+              height: 2,
+              diameterTop: 0,
+              diameterBottom: 4,
+            },
+            scene
+          );
+          techo.material = matTecho;
+          techo.position = new BABYLON.Vector3(12 + i * 4, 4, 12 + i * 2);
         }
 
         // ============================================
-        // INICIAR JUEGO
+        // CREAR MONEDAS DE ORO
         // ============================================
-        const scene = createScene();
+        const monedas = [];
+        const posicionesMonedas = [
+          new BABYLON.Vector3(13, 0.3, 13),
+          new BABYLON.Vector3(17, 0.3, 15),
+          new BABYLON.Vector3(15, 0.3, 17),
+          new BABYLON.Vector3(19, 0.3, 13),
+          new BABYLON.Vector3(14, 0.3, 19),
+        ];
 
-        engine.runRenderLoop(function () {
-            scene.render();
+        for (let i = 0; i < TOTAL_MONEDAS; i++) {
+          const moneda = BABYLON.MeshBuilder.CreateCylinder(
+            `moneda${i}`,
+            {
+              height: 0.2,
+              diameter: 0.8,
+            },
+            scene
+          );
+          moneda.material = matMoneda;
+          moneda.position = posicionesMonedas[i].clone();
+          moneda.metadata = { recogida: false, enCueva: false };
+          monedas.push(moneda);
+
+          // Animación de rotación
+          scene.registerBeforeRender(function () {
+            if (!moneda.metadata.recogida) {
+              moneda.rotation.y += 0.02;
+              moneda.position.y =
+                posicionesMonedas[i].y + Math.sin(Date.now() * 0.003 + i) * 0.1;
+            }
+          });
+        }
+
+        // ============================================
+        // MANEJO DE INPUT
+        // ============================================
+        scene.actionManager = new BABYLON.ActionManager(scene);
+
+        scene.actionManager.registerAction(
+          new BABYLON.ExecuteCodeAction(
+            BABYLON.ActionManager.OnKeyDownTrigger,
+            function (evt) {
+              inputMap[evt.sourceEvent.key.toLowerCase()] = true;
+            }
+          )
+        );
+
+        scene.actionManager.registerAction(
+          new BABYLON.ExecuteCodeAction(
+            BABYLON.ActionManager.OnKeyUpTrigger,
+            function (evt) {
+              inputMap[evt.sourceEvent.key.toLowerCase()] = false;
+            }
+          )
+        );
+
+        // ============================================
+        // LÓGICA DE RECOGER/DEJAR MONEDAS
+        // ============================================
+        scene.onKeyboardObservable.add((kbInfo) => {
+          if (kbInfo.type === BABYLON.KeyboardEventTypes.KEYDOWN) {
+            if (kbInfo.event.key === ' ') {
+              // Verificar que el dragón esté cargado
+              if (!dragon) return;
+
+              // RECOGER MONEDA
+              if (!monedaEnMano) {
+                for (let moneda of monedas) {
+                  if (!moneda.metadata.recogida && !moneda.metadata.enCueva) {
+                    let dist = BABYLON.Vector3.Distance(
+                      dragon.position,
+                      moneda.position
+                    );
+                    if (dist < 3) {
+                      console.log('💰 ¡Moneda recogida!');
+                      moneda.parent = dragon;
+                      moneda.position = new BABYLON.Vector3(0, 2, 0);
+                      moneda.metadata.recogida = true;
+                      monedaEnMano = true;
+                      monedaActual = moneda;
+                      actualizarUI();
+                      break;
+                    }
+                  }
+                }
+              }
+              // DEJAR MONEDA EN LA CUEVA
+              else {
+                let dist = BABYLON.Vector3.Distance(
+                  dragon.position,
+                  zonaEntrega.position
+                );
+                if (dist < 5) {
+                  console.log('🏆 ¡Moneda entregada en la cueva!');
+                  monedaActual.parent = null;
+                  monedaActual.position = new BABYLON.Vector3(
+                    zonaEntrega.position.x + (Math.random() - 0.5) * 4,
+                    0.3,
+                    zonaEntrega.position.z + (Math.random() - 0.5) * 4
+                  );
+                  monedaActual.metadata.enCueva = true;
+                  monedaEnMano = false;
+                  monedasEntregadas++;
+                  monedaActual = null;
+                  actualizarUI();
+
+                  // Verificar victoria
+                  if (monedasEntregadas === TOTAL_MONEDAS) {
+                    document.getElementById('victory-screen').style.display =
+                      'block';
+                  }
+                }
+              }
+            }
+          }
         });
 
-        window.addEventListener("resize", function () {
-            engine.resize();
+        // ============================================
+        // MOVIMIENTO DEL DRAGÓN
+        // ============================================
+        const velocidad = 0.15;
+        scene.onBeforeRenderObservable.add(() => {
+          // Verificar que el dragón esté cargado
+          if (!dragon) return;
+
+          let moved = false;
+          let targetRotation = dragon.rotation.y;
+
+          if (inputMap['w']) {
+            dragon.position.z += velocidad;
+            targetRotation = Math.PI; // Hacia adelante (+Z)
+            moved = true;
+          }
+          if (inputMap['s']) {
+            dragon.position.z -= velocidad;
+            targetRotation = 0; // Hacia atrás (-Z)
+            moved = true;
+          }
+          if (inputMap['a']) {
+            dragon.position.x -= velocidad;
+            targetRotation = Math.PI / 2; // Hacia la izquierda (-X)
+            moved = true;
+          }
+          if (inputMap['d']) {
+            dragon.position.x += velocidad;
+            targetRotation = -Math.PI / 2; // Hacia la derecha (+X)
+            moved = true;
+          }
+
+          // Rotación suave del dragón
+          if (moved) {
+            let diff = targetRotation - dragon.rotation.y;
+            while (diff > Math.PI) diff -= 2 * Math.PI;
+            while (diff < -Math.PI) diff += 2 * Math.PI;
+            dragon.rotation.y += diff * 0.1;
+          }
+
+          // La cámara sigue al dragón
+          camera.target = dragon.position;
         });
 
-        // Inicializar UI
-        actualizarUI();
+        return scene;
+      };
+
+      // ============================================
+      // ACTUALIZAR UI
+      // ============================================
+      function actualizarUI() {
+        document.getElementById('coins-delivered').textContent =
+          monedasEntregadas;
+        document.getElementById('total-coins').textContent = TOTAL_MONEDAS;
+
+        const statusLight = document.getElementById('status-light');
+        const statusText = document.getElementById('status-text');
+
+        if (monedaEnMano) {
+          statusLight.className = 'status-indicator status-carrying';
+          statusText.textContent = 'Llevando moneda 🪙';
+        } else {
+          statusLight.className = 'status-indicator status-empty';
+          statusText.textContent = 'Sin moneda';
+        }
+      }
+
+      // ============================================
+      // INICIAR JUEGO
+      // ============================================
+      const scene = createScene();
+
+      engine.runRenderLoop(function () {
+        scene.render();
+      });
+
+      window.addEventListener('resize', function () {
+        engine.resize();
+      });
+
+      // Inicializar UI
+      actualizarUI();
     </script>
-</body>
+  </body>
 </html>
